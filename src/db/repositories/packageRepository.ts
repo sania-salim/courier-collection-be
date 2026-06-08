@@ -33,6 +33,14 @@ export const createPackage = async (input: CreatePackageInputType): Promise<Pack
 
 // --- READ ---
 
+export const findPackageById = async (id: string): Promise<Package | null> => {
+    const { rows } = await pool.query<Package>(
+        "SELECT * FROM packages WHERE id = $1", [id]
+    );
+
+    return rows[0] ?? null;
+};
+
 // find the package using tracking ID
 export const findPackageByTrackingId = async (trackingId: string): Promise<Package | null> => {
     const { rows } = await pool.query<Package>(
