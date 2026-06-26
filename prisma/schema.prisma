@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// models are written here in the syntax:
+//model ModelName {
+// fieldName  FieldType  @modifier
+//}
+
+model Region {
+  id                String   @id @default(uuid())
+  name              String
+  regionCode        String   @unique
+  locationLatitude  Float
+  locationLongitude Float
+  createdAt         DateTime @default(now())
+
+  // relations where this model is parent
+  // field in this model is used as FK in the following models
+  // helps in reverse relation mapping
+  // example: region has many front offices, find front offices belonging to this region
+  // without Prisma, reverse navigation written manually as a repository function
+  frontOffices FrontOffice[]
+
+  packagesFrom CourierPackage[] @relation("FromRegion")
+  packagesTo   CourierPackage[] @relation("ToRegion")
+
+  routeStops RouteStop[]
+
+  sealedBagsFrom SealedBag[] @relation("SealedBagsFromRegion")
+  sealedBagsTo   SealedBag[] @relation("SealedBagsToRegion")
+}
+
+model FrontOffice {
+  id       String @id @default(uuid())
+  name     String
+  code     String @unique
+  region   Region @relation(fields: [regionId], references: [id])
+  regionId String
+}
+
+model ExternalBusiness {
+  id      String @id @default(uuid())
+  name    String
+  code    String @unique
+  address String
+
+  // relations as PK
+  packagesFrom CourierPackage[] @relation("FromAddress")
+}
+
+enum COURIER_PACKAGE_STATUS {
+  TO_BE_PICKED_UP
+  PICKED_UP
+  ADDED_TO_BAG
+  EN_ROUTE_TO_REGION
+  ARRIVED_AT_REGION
+  SCHEDULED_FOR_DELIVERY
+  OUT_FOR_DELIVERY
+  DELAYED
+}
+
+model CourierPackage {
+  id           String @id @default(uuid())
+  code         String @unique
+  fromRegion   Region @relation("FromRegion", fields: [fromRegionId], references: [id])
+  fromRegionId String
+  toRegion     Region @relation("ToRegion", fields: [toRegionId], references: [id])
+  toRegionId   String
+
+  createdAt  DateTime  @default(now())
+  pickedUpAt DateTime?
+
+  // assumes that the packages are always from an external business
+  fromAddress   ExternalBusiness @relation("FromAddress", fields: [fromAddressId], references: [id])
+  fromAddressId String
+
+  toAddress String
+  weight    Int    @default(0) // weight in kg
+  status    COURIER_PACKAGE_STATUS @default(TO_BE_PICKED_UP)
+
+  sealedBag   SealedBag? @relation(fields: [sealedBagId], references: [id])
+  sealedBagId String?
+}
+
+model Route {
+  id   String @id @default(uuid())
+  name String
+  code String @unique
+
+  stops    RouteStop[]
+  journeys Journey[]
+}
+
+model RouteStop {
+  id        String @id @default(uuid())
+  stopOrder Int
+
+  route   Route  @relation(fields: [routeId], references: [id])
+  routeId String
+
+  region   Region @relation(fields: [regionId], references: [id])
+  regionId String
+
+  // @@unique -> compount unique constraint
+  @@unique([routeId, stopOrder]) //no two stops on the same route can have the same order
+  @@unique([routeId, regionId]) //same region can't appear twice on one route
+}
+
+model Vehicle {
+  id            String  @id @default(uuid())
+  capacity      Int // weight capacity in kg
+  vehicleNumber Int     @unique
+  isDelayed     Boolean @default(false)
+
+  journeys Journey[]
+
+  sealedBags SealedBag[] @relation("sealedBagsAssignedToVehicle")
+}
+
+enum JOURNEY_STATUS {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Journey {
+  id      String         @id @default(uuid())
+  isLocal Boolean        @default(false) // vehicle picking up from front offices or local delivery from region is Local
+  status  JOURNEY_STATUS @default(SCHEDULED)
+
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id])
+  vehicleId String?
+
+  route   Route?  @relation(fields: [routeId], references: [id])
+  routeId String?
+
+  scheduledDepartureAt DateTime?      // original scheduled time from current region
+  nextDepartureAt      DateTime?      // rescheduled time if delayed from current region
+  actualDepartureAt    DateTime?      // actual departure time from current region
+
+  isDelayed   Boolean @default(false)
+  delayReason String?
+}
+
+enum BAG_STATUS {
+  OPEN
+  SEALED
+  LOADED
+  IN_TRANSIT
+  ARRIVED
+}
+
+model SealedBag {
+  id           String     @id @default(uuid())
+  itemCount    Int //number of packages
+  weight       Int
+  fromRegion   Region     @relation("SealedBagsFromRegion", fields: [fromRegionId], references: [id])
+  fromRegionId String
+  toRegion     Region     @relation("SealedBagsToRegion", fields: [toRegionId], references: [id])
+  toRegionId   String
+  vehicle      Vehicle?   @relation("sealedBagsAssignedToVehicle", fields: [vehicleId], references: [id])
+  vehicleId    String?
+  status       BAG_STATUS @default(OPEN)
+
+  timeArrivedAt   DateTime?
+  sealedAt        DateTime?
+  loadedAt        DateTime?
+  courierPackages CourierPackage[]
+}

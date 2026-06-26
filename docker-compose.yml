@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: courier_collection_stage_2_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d courier_collection_stage_2_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_PROTOCOL: http
+      APP_HOST: 0.0.0.0
+      APP_PORT: 5001
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: courier_collection_stage_2_dev
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_POOL_MIN: 2
+      DB_POOL_MAX: 10
+    ports:
+      - "5001:5001"
+    volumes:
+      - .:/workspace:cached
+      - node_modules:/workspace/node_modules
+    working_dir: /workspace
+    command: npx tsx watch src/index.ts
+
+volumes:
+  postgres_data:
+  node_modules:

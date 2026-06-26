@@ -1,0 +1,48 @@
+{
+  "name": "courier-collection-stage-2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "migrate": "ts-node src/db/migrate.ts",
+    "seed": "ts-node src/db/seed.ts",
+    "seed:dev": "ts-node src/db/seed.ts --dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sania-salim/courier-collection-be.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sania-salim/courier-collection-be/issues"
+  },
+  "homepage": "https://github.com/sania-salim/courier-collection-be#readme",
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "axios": "^1.17.0",
+    "express": "^5.2.1",
+    "http-terminator": "^3.2.0",
+    "pg": "^8.21.0",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^6.0.3",
+    "winston": "^3.19.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.9.2",
+    "@types/pg": "^8.20.0",
+    "dotenv": "^17.4.2",
+    "prisma": "^6.19.3",
+    "tsx": "^4.22.4"
+  }
+}
