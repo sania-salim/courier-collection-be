@@ -8,9 +8,17 @@ const app = {
 
 const db = {
   url: env.DATABASE_URL,
+  host: env.DB_HOST,
+  port: env.DB_PORT,
+  name: env.DB_NAME,
+  user: env.DB_USER,
+  password: env.DB_PASSWORD,
+  pool: {
+    min: env.DB_POOL_MIN,
+    max: env.DB_POOL_MAX,
+  },
 };
 
-// access all env variables through config
 const config = {
   app: {
     ...app,

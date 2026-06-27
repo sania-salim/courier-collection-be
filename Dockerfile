@@ -13,7 +13,7 @@ RUN npm ci
 
 COPY . .
 
-EXPOSE 5000
+EXPOSE 5001
 
 FROM base AS production
 
@@ -27,6 +27,6 @@ RUN npm run build
 
 USER node
 
-EXPOSE 5000
+EXPOSE 5001
 
 CMD ["npm", "start"]
