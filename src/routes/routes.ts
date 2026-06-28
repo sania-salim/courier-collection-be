@@ -8,6 +8,7 @@ import packageRoutes from "./packageRoutes";
 import externalBusinessRoutes from "./externalBusinessRoutes";
 import sealedBagRoutes from "./sealedBagRoutes";
 import journeyRoutes from "./journeyRoutes";
+import simulationRoutes from "./simulationRoutes";
 
 const router = express.Router();
 
@@ -19,5 +20,6 @@ router.use(API.packages, packageRoutes);
 router.use(API.externalBusinesses, externalBusinessRoutes);
 router.use(API.sealedBags, sealedBagRoutes);
 router.use(API.journeys, journeyRoutes);
+router.use(API.simulation, simulationRoutes);
 
 export default router;

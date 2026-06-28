@@ -1,8 +1,11 @@
 import prisma from "../db/client.js";
+import config from "../config/index.js";
 import { BadRequestError } from "../errors/BadRequestError.js";
 import { NotFoundError } from "../errors/NotFoundError.js";
+import { getRouteWithStops } from "./route.js";
+import { getFirstStop } from "../utils/routeUtils.js";
 
-const journeyInclude = {
+export const journeyInclude = {
   vehicle: true,
   route: {
     include: {
@@ -99,12 +102,27 @@ export async function createJourney(input: CreateJourneyInput) {
     }
   }
 
+  let currentRegionId: string | undefined;
+  let nextArrivalAt: Date | undefined;
+
+  if (input.routeId) {
+    const route = await getRouteWithStops(input.routeId);
+    const firstStop = getFirstStop(route.stops);
+    if (firstStop) {
+      currentRegionId = firstStop.regionId;
+      // Manual simulation advances journeys on demand — no wait timer.
+      nextArrivalAt = null;
+    }
+  }
+
   return prisma.journey.create({
     data: {
       vehicleId: input.vehicleId,
       routeId: input.routeId,
       isLocal: input.isLocal ?? false,
       scheduledDepartureAt: input.scheduledDepartureAt,
+      currentRegionId,
+      nextArrivalAt,
     },
     include: {
       vehicle: true,
@@ -182,11 +200,20 @@ export async function completeJourney(id: string) {
     );
   }
 
+  if (journey.vehicleId) {
+    await prisma.sealedBag.updateMany({
+      where: { vehicleId: journey.vehicleId },
+      data: { vehicleId: null },
+    });
+  }
+
   return prisma.journey.update({
     where: { id },
     data: {
       status: "COMPLETED",
       isDelayed: false,
+      currentRegionId: null,
+      nextArrivalAt: null,
     },
   });
 }

@@ -5,8 +5,13 @@ import {
   getRegionByCode,
   getRegionWithFrontOffices,
 } from "../controllers/regionController";
+import { consolidateRegion } from "../controllers/consolidationController";
 import { validate } from "../middleware/validate";
-import { codeParamSchema, idParamSchema } from "../schemas/apiSchemas";
+import {
+  codeParamSchema,
+  consolidateQuerySchema,
+  idParamSchema,
+} from "../schemas/apiSchemas";
 
 const router = Router();
 
@@ -17,6 +22,11 @@ router.get(
   "/:id/front-offices",
   validate({ params: idParamSchema }),
   getRegionWithFrontOffices,
+);
+router.post(
+  "/:id/consolidate",
+  validate({ params: idParamSchema, query: consolidateQuerySchema }),
+  consolidateRegion,
 );
 
 export default router;

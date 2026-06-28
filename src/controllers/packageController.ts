@@ -1,5 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
 import * as packageService from "../services/package";
+import {
+  backfillScanLogForPackage,
+  listScanLogsForPackageCode,
+} from "../services/packageScanLog.js";
 
 export async function listPackages(
   _req: Request,
@@ -47,6 +51,27 @@ export async function updatePackage(
   try {
     const { code } = req.params as { code: string };
     res.json(await packageService.updatePackage(code, req.body));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPackageScanLogs(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const { code } = req.params as { code: string };
+    const pkg = await packageService.getPackageByCode(code);
+    const logs = await listScanLogsForPackageCode(code);
+
+    if (logs.length === 0) {
+      res.json(await backfillScanLogForPackage(pkg.id));
+      return;
+    }
+
+    res.json(logs);
   } catch (err) {
     next(err);
   }

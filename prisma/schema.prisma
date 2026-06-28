@@ -28,13 +28,19 @@ model Region {
   // without Prisma, reverse navigation written manually as a repository function
   frontOffices FrontOffice[]
 
-  packagesFrom CourierPackage[] @relation("FromRegion")
-  packagesTo   CourierPackage[] @relation("ToRegion")
+  packagesFrom    CourierPackage[] @relation("FromRegion")
+  packagesTo      CourierPackage[] @relation("ToRegion")
+  packagesCurrent CourierPackage[] @relation("PackageCurrentRegion")
 
   routeStops RouteStop[]
 
-  sealedBagsFrom SealedBag[] @relation("SealedBagsFromRegion")
-  sealedBagsTo   SealedBag[] @relation("SealedBagsToRegion")
+  sealedBagsFrom    SealedBag[] @relation("SealedBagsOriginRegion")
+  sealedBagsTo      SealedBag[] @relation("SealedBagsToRegion")
+  sealedBagsCurrent SealedBag[] @relation("SealedBagsCurrentRegion")
+
+  journeysAt Journey[] @relation("JourneyCurrentRegion")
+
+  packageScanLogs PackageScanLog[]
 }
 
 model FrontOffice {
@@ -74,6 +80,10 @@ model CourierPackage {
   toRegion     Region @relation("ToRegion", fields: [toRegionId], references: [id])
   toRegionId   String
 
+  // Hub where the package physically is now (pickup origin until moved in transit)
+  currentRegion   Region @relation("PackageCurrentRegion", fields: [currentRegionId], references: [id])
+  currentRegionId String
+
   createdAt  DateTime  @default(now())
   pickedUpAt DateTime?
 
@@ -87,6 +97,21 @@ model CourierPackage {
 
   sealedBag   SealedBag? @relation(fields: [sealedBagId], references: [id])
   sealedBagId String?
+
+  scanLogs PackageScanLog[]
+}
+
+model PackageScanLog {
+  id        String                 @id @default(uuid())
+  package   CourierPackage         @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  packageId String
+  region    Region                 @relation(fields: [regionId], references: [id])
+  regionId  String
+  status    COURIER_PACKAGE_STATUS
+  notes     String?
+  scannedAt DateTime               @default(now())
+
+  @@index([packageId, scannedAt])
 }
 
 model Route {
@@ -94,8 +119,9 @@ model Route {
   name String
   code String @unique
 
-  stops    RouteStop[]
-  journeys Journey[]
+  stops      RouteStop[]
+  journeys   Journey[]
+  sealedBags SealedBag[]
 }
 
 model RouteStop {
@@ -142,7 +168,12 @@ model Journey {
   route   Route?  @relation(fields: [routeId], references: [id])
   routeId String?
 
-  scheduledDepartureAt DateTime?      // original scheduled time from current region
+  // Current hub on the route (demo simulator / in-progress journeys)
+  currentRegion   Region?   @relation("JourneyCurrentRegion", fields: [currentRegionId], references: [id])
+  currentRegionId String?
+  nextArrivalAt   DateTime?
+
+  scheduledDepartureAt DateTime? // original scheduled time from current region
   nextDepartureAt      DateTime?      // rescheduled time if delayed from current region
   actualDepartureAt    DateTime?      // actual departure time from current region
 
@@ -159,16 +190,30 @@ enum BAG_STATUS {
 }
 
 model SealedBag {
-  id           String     @id @default(uuid())
-  itemCount    Int //number of packages
-  weight       Int
-  fromRegion   Region     @relation("SealedBagsFromRegion", fields: [fromRegionId], references: [id])
-  fromRegionId String
-  toRegion     Region     @relation("SealedBagsToRegion", fields: [toRegionId], references: [id])
-  toRegionId   String
-  vehicle      Vehicle?   @relation("sealedBagsAssignedToVehicle", fields: [vehicleId], references: [id])
-  vehicleId    String?
-  status       BAG_STATUS @default(OPEN)
+  id          String @id @default(uuid())
+  itemCount   Int //number of packages
+  weight      Int
+  maxWeightKg Int    @default(5) // maximum total weight of packages in this bag
+
+  // Hub where the bag was first opened (never changes)
+  originRegion   Region @relation("SealedBagsOriginRegion", fields: [originRegionId], references: [id])
+  originRegionId String
+
+  // Physical location of the bag now (updated as it moves between hubs)
+  currentRegion   Region @relation("SealedBagsCurrentRegion", fields: [currentRegionId], references: [id])
+  currentRegionId String
+
+  // Optional final destination when bag is lane-specific; route-based bags may omit this
+  toRegion   Region? @relation("SealedBagsToRegion", fields: [toRegionId], references: [id])
+  toRegionId String?
+
+  // Route this bag is travelling on from the current region
+  route   Route?  @relation(fields: [routeId], references: [id])
+  routeId String?
+
+  vehicle   Vehicle? @relation("sealedBagsAssignedToVehicle", fields: [vehicleId], references: [id])
+  vehicleId String?
+  status    BAG_STATUS @default(OPEN)
 
   timeArrivedAt   DateTime?
   sealedAt        DateTime?

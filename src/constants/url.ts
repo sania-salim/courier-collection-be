@@ -7,4 +7,5 @@ export const API = {
   externalBusinesses: "/external-businesses",
   sealedBags: "/sealed-bags",
   journeys: "/journeys",
+  simulation: "/simulation",
 } as const;

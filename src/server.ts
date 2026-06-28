@@ -2,6 +2,10 @@ import { createServer } from "http";
 import { createHttpTerminator } from "http-terminator";
 import createApp from "./app";
 import config from "./config";
+import {
+  startRouteSimulatorJob,
+  stopRouteSimulatorJob,
+} from "./jobs/routeSimulatorJob";
 import logger from "./utils/logger";
 
 export default function startServer() {
@@ -16,6 +20,7 @@ export default function startServer() {
   const started = new Promise<void>((resolve) => {
     server.listen(config.app.port, () => {
       logger.info(`HTTP server listening on port ${config.app.port}`);
+      startRouteSimulatorJob();
       resolve();
     });
   });
@@ -24,6 +29,7 @@ export default function startServer() {
     logger.info(`Received ${signal}. Shutting down gracefully...`);
 
     try {
+      stopRouteSimulatorJob();
       await terminator.terminate();
       logger.info("Server closed. Bye!");
       process.exit(0);

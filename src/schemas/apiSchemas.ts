@@ -21,6 +21,10 @@ export const regionBagsQuerySchema = z.object({
   direction: z.enum(["from", "to", "any"]).optional().default("any"),
 });
 
+export const consolidateQuerySchema = z.object({
+  routeId: uuidSchema.optional(),
+});
+
 export const delayJourneySchema = z.object({
   reason: z.string().min(1),
 });
@@ -74,6 +78,12 @@ export const createPackageSchema = z.object({
   weight: z.number().int().nonnegative().optional(),
 });
 
+export const createExternalBusinessSchema = z.object({
+  name: z.string().min(1),
+  code: z.string().min(1),
+  address: z.string().min(1),
+});
+
 export const updatePackageSchema = z.object({
   status: z
     .enum([
@@ -92,8 +102,11 @@ export const updatePackageSchema = z.object({
 });
 
 export const createSealedBagSchema = z.object({
-  fromRegionId: uuidSchema,
-  toRegionId: uuidSchema,
+  originRegionId: uuidSchema,
+  toRegionId: uuidSchema.optional(),
+  currentRegionId: uuidSchema.optional(),
+  routeId: uuidSchema.optional(),
+  maxWeightKg: z.number().int().positive().optional(),
 });
 
 export const bagPackageSchema = z.object({

@@ -38,3 +38,18 @@ export async function getExternalBusinessByCode(
     next(err);
   }
 }
+
+export async function createExternalBusiness(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const business = await externalBusinessService.createExternalBusiness(
+      req.body,
+    );
+    res.status(201).json(business);
+  } catch (err) {
+    next(err);
+  }
+}

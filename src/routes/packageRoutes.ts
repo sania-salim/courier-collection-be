@@ -4,6 +4,7 @@ import {
   getPackage,
   createPackage,
   updatePackage,
+  getPackageScanLogs,
 } from "../controllers/packageController";
 import { validate } from "../middleware/validate";
 import {
@@ -16,6 +17,11 @@ const router = Router();
 
 router.get("/", listPackages);
 router.post("/", validate({ body: createPackageSchema }), createPackage);
+router.get(
+  "/:code/scan-logs",
+  validate({ params: codeParamSchema }),
+  getPackageScanLogs,
+);
 router.get("/:code", validate({ params: codeParamSchema }), getPackage);
 router.patch(
   "/:code",

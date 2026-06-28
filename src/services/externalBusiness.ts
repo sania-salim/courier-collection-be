@@ -1,5 +1,6 @@
 import prisma from "../db/client.js";
 import { NotFoundError } from "../errors/NotFoundError.js";
+import type { Prisma } from "../generated/prisma/client.js";
 
 export async function listExternalBusinesses() {
   return prisma.externalBusiness.findMany({
@@ -29,4 +30,12 @@ export async function getExternalBusinessByCode(code: string) {
   }
 
   return business;
+}
+
+export async function createExternalBusiness(
+  data: Prisma.ExternalBusinessUncheckedCreateInput,
+) {
+  return prisma.externalBusiness.create({
+    data,
+  });
 }

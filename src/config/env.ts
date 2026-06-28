@@ -38,6 +38,24 @@ const EnvSchema = z
       .transform(Number)
       .pipe(z.number().int().positive())
       .default(10),
+
+    ENABLE_ROUTE_SIMULATOR: z
+      .enum(["true", "false"])
+      .optional()
+      .transform((v) => v === "true")
+      .default(false),
+
+    SIMULATOR_INTERVAL_MS: z
+      .string()
+      .transform(Number)
+      .pipe(z.number().int().positive())
+      .default(120_000),
+
+    SIMULATOR_JITTER_MS: z
+      .string()
+      .transform(Number)
+      .pipe(z.number().int().nonnegative())
+      .default(30_000),
   })
   .superRefine((env, ctx) => {
     if (!env.DATABASE_URL && !env.DB_NAME) {

@@ -25,6 +25,11 @@ const config = {
     baseUrl: `${app.protocol}://${app.host}:${app.port}`,
   },
   db: { ...db },
+  simulator: {
+    enabled: env.ENABLE_ROUTE_SIMULATOR,
+    intervalMs: env.SIMULATOR_INTERVAL_MS,
+    jitterMs: env.SIMULATOR_JITTER_MS,
+  },
 };
 
 export default config;

@@ -23,3 +23,6 @@ Project uses Node(23.9.0) and npm (10.9.2)
 ## Ports
 
 Stage 2 uses port **5001** (API) and **5433** (PostgreSQL) so it can run alongside stage 1.
+
+
+

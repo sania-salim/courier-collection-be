@@ -7,6 +7,7 @@ import {
   COURIER_PACKAGE_STATUS,
   type BAG_STATUS as BagStatus,
 } from "../generated/prisma/client.js";
+import { recordPackageScan } from "./packageScanLog.js";
 
 type RegionBagDirection = "from" | "to" | "any";
 
@@ -76,12 +77,12 @@ export async function listBagsForRegion(
 
   const where: Prisma.SealedBagWhereInput =
     direction === "from"
-      ? { fromRegionId: regionId }
+      ? { currentRegionId: regionId }
       : direction === "to"
         ? { toRegionId: regionId }
         : {
-            OR: [{ fromRegionId: regionId }, { toRegionId: regionId }],
-          };
+          OR: [{ currentRegionId: regionId }, { toRegionId: regionId }],
+        };
 
   return prisma.sealedBag.findMany({
     where,
@@ -154,13 +155,19 @@ export async function getBagSummary(id: string) {
   };
 }
 
-export async function createSealedBag(data: Prisma.SealedBagUncheckedCreateInput) {
+export async function createSealedBag(
+  data: Prisma.SealedBagUncheckedCreateInput,
+) {
+  const currentRegionId = data.currentRegionId ?? data.originRegionId;
+
   return prisma.sealedBag.create({
     data: {
       itemCount: 0,
       weight: 0,
+      maxWeightKg: 5,
       status: BAG_STATUS.OPEN,
       ...data,
+      currentRegionId,
     },
   });
 }
@@ -199,16 +206,32 @@ export async function addPackageToBag(bagId: string, packageId: string) {
       throw new BadRequestError("Package is already assigned to a bag");
     }
 
-    if (pkg.status !== COURIER_PACKAGE_STATUS.PICKED_UP) {
-      throw new BadRequestError("Package must be picked up before it can be added to a bag");
+    if (
+      pkg.status !== COURIER_PACKAGE_STATUS.PICKED_UP &&
+      pkg.status !== COURIER_PACKAGE_STATUS.ARRIVED_AT_REGION &&
+      pkg.status !== COURIER_PACKAGE_STATUS.TO_BE_PICKED_UP
+    ) {
+      throw new BadRequestError(
+        "Package must be at the hub and ready for bagging before it can be added to a bag",
+      );
     }
 
-    if (pkg.fromRegionId !== bag.fromRegionId) {
-      throw new BadRequestError("Package origin region does not match the bag origin region");
+    if (pkg.currentRegionId !== bag.currentRegionId) {
+      throw new BadRequestError(
+        "Package is not at the same hub as the bag",
+      );
     }
 
-    if (pkg.toRegionId !== bag.toRegionId) {
-      throw new BadRequestError("Package destination region does not match the bag destination region");
+    if (bag.toRegionId && pkg.toRegionId !== bag.toRegionId) {
+      throw new BadRequestError(
+        "Package destination region does not match the bag destination region",
+      );
+    }
+
+    if (bag.weight + pkg.weight > bag.maxWeightKg) {
+      throw new BadRequestError(
+        `Adding this package would exceed the bag limit of ${bag.maxWeightKg} kg`,
+      );
     }
 
     await tx.courierPackage.update({
@@ -218,6 +241,16 @@ export async function addPackageToBag(bagId: string, packageId: string) {
         status: COURIER_PACKAGE_STATUS.ADDED_TO_BAG,
       },
     });
+
+    await recordPackageScan(
+      {
+        packageId,
+        regionId: bag.currentRegionId,
+        status: COURIER_PACKAGE_STATUS.ADDED_TO_BAG,
+        notes: "Consolidated into sealed bag at hub",
+      },
+      tx,
+    );
 
     return syncBagTotals(tx, bagId);
   });
@@ -301,15 +334,25 @@ export async function assignBagToVehicle(bagId: string, vehicleId: string) {
       throw new BadRequestError("Only sealed bags can be assigned to a vehicle");
     }
 
-    const vehicle = await tx.vehicle.findUnique({ where: { id: vehicleId } });
+    const vehicle = await tx.vehicle.findUnique({
+      where: { id: vehicleId },
+      include: { sealedBags: true },
+    });
 
     if (!vehicle) {
       throw new NotFoundError(`Vehicle with id ${vehicleId} not found`);
     }
 
-    if (bag.weight > vehicle.capacity) {
+    const currentWeight = vehicle.sealedBags.reduce(
+      (sum, loadedBag) => sum + loadedBag.weight,
+      0,
+    );
+
+    if (currentWeight + bag.weight > vehicle.capacity) {
       throw new BadRequestError(
-        `Bag weight (${bag.weight} kg) exceeds vehicle capacity (${vehicle.capacity} kg)`,
+        `Cannot assign bag — would exceed vehicle capacity. ` +
+          `Current: ${currentWeight}kg, Bag: ${bag.weight}kg, ` +
+          `Capacity: ${vehicle.capacity}kg`,
       );
     }
 
