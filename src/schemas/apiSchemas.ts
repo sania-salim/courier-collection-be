@@ -116,3 +116,18 @@ export const bagPackageSchema = z.object({
 export const assignBagToVehicleSchema = z.object({
   vehicleId: uuidSchema,
 });
+
+export const roadRouteSchema = z
+  .object({
+    routeId: uuidSchema,
+    fromRegionId: uuidSchema.optional(),
+    toRegionId: uuidSchema.optional(),
+  })
+  .refine(
+    (data) =>
+      (data.fromRegionId == null && data.toRegionId == null) ||
+      (data.fromRegionId != null && data.toRegionId != null),
+    {
+      message: "Provide both fromRegionId and toRegionId, or neither",
+    },
+  );

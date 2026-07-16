@@ -30,6 +30,11 @@ const config = {
     intervalMs: env.SIMULATOR_INTERVAL_MS,
     jitterMs: env.SIMULATOR_JITTER_MS,
   },
+  routeService: {
+    openRouteService: {
+      apiKey: env.OPEN_ROUTE_SERVICE_API_KEY,
+    },
+  },
 };
 
 export default config;

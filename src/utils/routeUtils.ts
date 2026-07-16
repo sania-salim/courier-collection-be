@@ -1,3 +1,4 @@
+import { Region, RouteStop } from "../generated/prisma/client.js";
 import { getRouteWithStops } from "../services/route.js";
 
 export type RouteStopRow = {
@@ -11,6 +12,9 @@ export type RouteStopRow = {
     regionCode: string;
   };
 };
+
+export type LatLongCoordinates = [longitude: number, latitude: number];
+
 
 export async function getRouteStopsOrdered(
   routeId: string,
@@ -85,4 +89,10 @@ export function getSimulatorArrivalTime(
 ): Date {
   const jitter = jitterMs > 0 ? Math.floor(Math.random() * jitterMs) : 0;
   return new Date(Date.now() + intervalMs + jitter);
+}
+
+// convert to [longitude,latitude] format
+export const trandformToRoutingCoordinates = (regions: Region[]): LatLongCoordinates[] => {
+  const coordinates: LatLongCoordinates[] = regions.map((region) => [region.locationLongitude, region.locationLatitude])
+  return coordinates;
 }

@@ -9,6 +9,7 @@ import {
   createRoute,
   updateRoute,
   addRouteStop,
+  getRoadRoute,
 } from "../controllers/routeController";
 import { validate } from "../middleware/validate";
 import {
@@ -16,6 +17,7 @@ import {
   codeParamSchema,
   createRouteSchema,
   idParamSchema,
+  roadRouteSchema,
   updateRouteSchema,
 } from "../schemas/apiSchemas";
 
@@ -46,5 +48,6 @@ router.get(
   validate({ params: idParamSchema }),
   listRegionsOnRoute,
 );
+router.post("/road-route",validate({ body: roadRouteSchema }), getRoadRoute);
 
 export default router;

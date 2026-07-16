@@ -116,3 +116,12 @@ export async function addRouteStop(
     next(err);
   }
 }
+
+export async function getRoadRoute(req: Request, res: Response, next: NextFunction) {
+  try {
+    const roadRoute = await routeService.getRoadRoute(req.body);
+    res.json(roadRoute);
+  } catch (err) {
+    next(err);
+  }
+}

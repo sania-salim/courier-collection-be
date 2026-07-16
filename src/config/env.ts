@@ -56,6 +56,8 @@ const EnvSchema = z
       .transform(Number)
       .pipe(z.number().int().nonnegative())
       .default(30_000),
+
+    OPEN_ROUTE_SERVICE_API_KEY: z.string().min(1),
   })
   .superRefine((env, ctx) => {
     if (!env.DATABASE_URL && !env.DB_NAME) {

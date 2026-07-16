@@ -1,6 +1,12 @@
+import config from "../config/index.js";
 import prisma from "../db/client.js";
+import { BadRequestError } from "../errors/BadRequestError.js";
 import { NotFoundError } from "../errors/NotFoundError.js";
 import type { Prisma } from "../generated/prisma/client.js";
+import {
+  LatLongCoordinates,
+  trandformToRoutingCoordinates,
+} from "../utils/routeUtils.js";
 
 const routeWithStopsInclude = {
   stops: {
@@ -175,4 +181,87 @@ export async function updateRouteStop(
       region: true,
     },
   });
+}
+
+const getOpenRouteService = async (
+  regionsCoordinates: LatLongCoordinates[],
+) => {
+  const res = await fetch(
+    "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/geo+json, application/json",
+        Authorization: config.routeService.openRouteService.apiKey,
+      },
+      body: JSON.stringify({
+        coordinates: regionsCoordinates,
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new BadRequestError(
+      `Failed to get road route from OpenRouteService (${res.status}): ${detail}`,
+    );
+  }
+
+  return res.json();
+};
+
+export async function getRoadRoute(input: {
+  routeId: string;
+  fromRegionId?: string;
+  toRegionId?: string;
+}) {
+  const { routeId, fromRegionId, toRegionId } = input;
+  await getRouteById(routeId);
+
+  const routeStops = await prisma.routeStop.findMany({
+    where: { routeId },
+    orderBy: { stopOrder: "asc" },
+    include: {
+      region: true,
+    },
+  });
+
+  let stopsForPath = routeStops;
+
+  if (fromRegionId && toRegionId) {
+    const fromOrder = routeStops.find(
+      (stop) => stop.regionId === fromRegionId,
+    )?.stopOrder;
+    const toOrder = routeStops.find(
+      (stop) => stop.regionId === toRegionId,
+    )?.stopOrder;
+
+    if (fromOrder == null || toOrder == null) {
+      throw new BadRequestError(
+        "fromRegionId and toRegionId must both appear on the route",
+      );
+    }
+
+    if (toOrder <= fromOrder) {
+      throw new BadRequestError(
+        "toRegionId must be downstream of fromRegionId on the route",
+      );
+    }
+
+    stopsForPath = routeStops.filter(
+      (stop) => stop.stopOrder >= fromOrder && stop.stopOrder <= toOrder,
+    );
+  }
+
+  if (stopsForPath.length < 2) {
+    throw new BadRequestError(
+      "Route needs at least 2 stops to compute a road path",
+    );
+  }
+
+  const routeRegions = stopsForPath.map((stop) => stop.region);
+  const routeCoordinates = trandformToRoutingCoordinates(routeRegions);
+
+  return getOpenRouteService(routeCoordinates);
 }
